@@ -1,32 +1,23 @@
 {
-  "name": "GTS ID Scanner",
+  "name": "ID Scanner",
   "short_name": "IDScan",
-  "description": "ID document scanner and PDF generator",
+  "description": "Professional ID document scanner and PDF generator",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#FFD700",
   "icons": [
     {
-      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIiIHZpZXdCb3g9IjAgMCAxMjggMTI4IiBmaWxsPSJub25lIiB2ZXJzaW9uPSIxLjEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3QgeD0iMSIgeT0iMSIgd2lkdGg9ITE0cyIgaGVpZ2h0PSI0MiIgcmg9IjQiIGZpbGw9IiNGRkQ3MDAiLz48dGV4dCB4PSI2NCIgeT0iNjQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iNDQiIGZpbGw9IiMwMDAiIGZvbnQtd2VpZ2h0PSJib2xkIj5JRCsvdGV4dD48L3N2Zz4=",
-      "sizes": "128x128",
-      "type": "image/svg+xml"
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
     },
-{
-  "src": "x512.png",
-  "sizes": "512X512",
-  "type": "image/png",
-  "purpose": "any"
-}
     {
-      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgdmlld0JveD0iMCAwIDUxMiA1MTIiIGZpbGw9Im5vbmUiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSIxIiB5PSIxIiB3aWR0aD0iNTEwIiBoZWlnaHQ9IjUxMCIgcmg9IjMwIiBmaWxsPSIjRkZENzAwIi8+PHRleHQgeD0iMjU2IiB5PSIyNTYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iNzQiIGZpbGw9IiMwMDAiIGZvbnQtd2VpZ2h0PSJib2xkIj5JRCw8L3RleHQ+PC9zdmc+",
+      "src": "icon-512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml"
+      "type": "image/png"
     }
   ],
-  "categories": [
-    "business",
-    "productivity"
-  ],
+  "categories": ["business", "productivity"],
   "lang": "en"
 }
