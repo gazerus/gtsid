@@ -6,16 +6,18 @@
   <title>ID Scanner</title>
   
   <!-- PWA Manifest -->
-  <link rel="manifest" href="manifest.json">
+  <link rel="manifest" href="data:application/manifest+json;base64,ewogICJuYW1lIjogIklEIFNjYW5uZXIiLAogICJzaG9ydF9uYW1lIjogIklEU2NhbiIsCiAgImRlc2NyaXB0aW9uIjogIlByb2Zlc3Npb25hbCBJRCBkb2N1bWVudCBzY2FubmVyIGFuZCBQREYgZ2VuZXJhdG9yIiwKICAic3RhcnRfdXJsIjogIi8iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiNmZmZmZmYiLAogICJ0aGVtZV9jb2xvciI6ICIjRkZENzAwIiwKICAiaWNvbnMiOiBbCiAgICB7CiAgICAgICJzcmMiOiAiZGF0YTppbWFnZS9zdmcreG1sO2Jhc2U2NCxQSE4yWnlCM2FXUjBhRDBpTVRJNElpQm9aV2xuYUhROUlqRXlPQ0lpSUhacFpYZENiM2c5SWpBZ01DQXhNamdnTVRJNElpQm1hV3hzUFNKdWIyNWxJaUIyWlhKemFXOXVQU0l4TGpFaUlIaHRiRzV6UFNKb2RIUndPaTh2ZDNkM0xuY3pMbTl5Wnk4eU1EQXdMM04yWnlJK1BISmxZM1FnZUQwaU1TSWdlVDBpTVNJZ2QybGtkR2c5SVRFMGN5SWdhR1ZwWjJoMFBTSTBNaUlnY21nOUlqUWlJR1pwYkd3OUlpTkdSa1EzTURBaUx6NDhkR1Y0ZENCNFBTSTJOQ0lnZVQwaU5qUWlJSFJsZUhRdFlXNWphRzl5UFNKdGFXUmtiR1VpSUdadmJuUXRjMmw2WlQwaU5EUWlJR1pwYkd3OUlpTXdNREFpSUdadmJuUXRkMlZwWjJoMFBTSmliMnhrSWo1SlJDc3ZkR1Y0ZEQ0OEwzTjJaejQ9IiwKICAgICAgInNpemVzIjogIjEyOHgxMjgiLAogICAgICAidHlwZSI6ICJpbWFnZS9zdmcreG1sIgogICAgfSwKICAgIHsKICAgICAgInNyYyI6ICJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBITjJaeUIzYVdSMGFEMGlOVEV5SWlCb1pXbG5hSFE5SWpVeE1pSWdkbWxsZDBKdmVEMGlNQ0F3SURVeE1pQTFNVElpSUdacGJHdzlJbTV2Ym1VaUlIWmxjbk5wYjI0OUlqRXVNU0lnZUcxc2JuTTlJbWgwZEhBNkx5OTNkM2N1ZHpNdWIzSm5Mekl3TURBdmMzWm5JajQ4Y21WamRDQjRQU0l4SWlCNVBTSXhJaUIzYVdSMGFEMGlOVEV3SWlCb1pXbG5hSFE5SWpVeE1DSWdjbWc5SWpNd0lpQm1hV3hzUFNJalJrWkVOekF3SWk4K1BIUmxlSFFnZUQwaU1qVTJJaUI1UFNJeU5UWWlJSFJsZUhRdFlXNWphRzl5UFNKdGFXUmtiR1VpSUdadmJuUXRjMmw2WlQwaU56UWlJR1pwYkd3OUlpTXdNREFpSUdadmJuUXRkMlZwWjJoMFBTSmliMnhrSWo1SlJDdzhMM1JsZUhRK1BDOXpkbWMrIiwKICAgICAgInNpemVzIjogIjUxMng1MTIiLAogICAgICAidHlwZSI6ICJpbWFnZS9zdmcreG1sIgogICAgfQogIF0sCiAgImNhdGVnb3JpZXMiOiBbImJ1c2luZXNzIiwgInByb2R1Y3Rpdml0eSJdLAogICJsYW5nIjogImVuIgp9">
   
   <!-- PWA Theme Colors -->
   <meta name="theme-color" content="#FFD700">
-  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="ID Scanner">
   
   <!-- jsPDF 1.x (legacy addImage API with JPEG) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/1.5.3/jspdf.debug.js"></script>
+  <!-- Dropbox JavaScript SDK -->
+  <script src="https://unpkg.com/dropbox/dist/Dropbox-sdk.min.js"></script>
   <style>
     body { font-family: 'Century Gothic', sans-serif; margin: 0; background: #ffffff; }
     .screen { 
@@ -111,6 +113,20 @@
     <option>VISA</option><option>Mastercard</option><option>Eftpos</option><option>AMEX</option>
   </select><br>
   <input type="text" id="expiryDate" placeholder="mm/yy"><br>
+  
+  <!-- Dropbox Sync Options -->
+  <div style="margin: 20px 0; padding: 15px; border: 1px solid #FFD700; border-radius: 5px;">
+    <h3 style="margin-top: 0; color: #FFD700;">Dropbox Sync</h3>
+    <div id="dropboxStatus">
+      <button id="connectDropbox" onclick="connectDropbox()">Connect to Dropbox</button>
+      <div id="dropboxConnected" style="display: none;">
+        <p>✅ Connected to Dropbox</p>
+        <label><input type="checkbox" id="autoSync" checked> Auto-sync PDFs to Dropbox</label>
+        <button onclick="disconnectDropbox()" style="background: #ccc; margin-left: 10px;">Disconnect</button>
+      </div>
+    </div>
+  </div>
+  
   <button onclick="generatePDF()">Save to PDF</button>
 </div>
 
@@ -120,6 +136,8 @@ let assessorSignature = '';
 let username = '';
 let photoData = [];
 let stream;
+let dropboxClient = null;
+let isDropboxConnected = false;
 
 function show(id) {
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
@@ -345,10 +363,114 @@ async function generatePDF() {
   }
 
   await generatePDFWithImages(pdf, smallImgs, first);
-  pdf.save(`GTSID_${username}_${new Date().toISOString().slice(2,16).replace(/[-T:]/g, '')}.pdf`);
+  
+  const filename = `GTSID_${username}_${new Date().toISOString().slice(2,16).replace(/[-T:]/g, '')}.pdf`;
+  
+  // Save PDF locally
+  pdf.save(filename);
+  
+  // Auto-sync to Dropbox if enabled
+  if (isDropboxConnected && document.getElementById('autoSync').checked) {
+    const pdfData = pdf.output('dataurlstring');
+    const uploaded = await uploadToDropbox(filename, pdfData);
+    
+    if (uploaded) {
+      alert('PDF saved locally and synced to Dropbox!');
+    } else {
+      alert('PDF saved locally. Dropbox sync failed - please try manual sync.');
+    }
+  }
 }
 
 async function generatePDFWithImages(pdf, smallImgs, first) {
+
+// Dropbox Integration Functions
+function connectDropbox() {
+  // You'll need to register your app at https://www.dropbox.com/developers/apps
+  // and replace 'YOUR_APP_KEY' with your actual app key
+  const APP_KEY = 'zh7hey3svng4kzr'; // Replace with your Dropbox app key
+  
+  dropboxClient = new Dropbox.Dropbox({ 
+    clientId: APP_KEY,
+    fetch: fetch
+  });
+  
+  // Get authentication URL
+  const authUrl = dropboxClient.getAuthenticationUrl('https://gazerus.github.io/gtsid/');
+  
+  // Open popup for authentication
+  const popup = window.open(authUrl, 'dropbox-auth', 'width=500,height=600');
+  
+  // Listen for authentication completion
+  const checkAuth = setInterval(() => {
+    try {
+      if (popup.closed) {
+        clearInterval(checkAuth);
+        // Check if we got an access token from the URL
+        const urlParams = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = urlParams.get('access_token');
+        
+        if (accessToken) {
+          dropboxClient.setAccessToken(accessToken);
+          isDropboxConnected = true;
+          localStorage.setItem('dropboxToken', accessToken);
+          updateDropboxUI();
+          alert('Successfully connected to Dropbox!');
+        }
+      }
+    } catch (e) {
+      // Handle cross-origin issues
+    }
+  }, 1000);
+}
+
+function disconnectDropbox() {
+  dropboxClient = null;
+  isDropboxConnected = false;
+  localStorage.removeItem('dropboxToken');
+  updateDropboxUI();
+}
+
+function updateDropboxUI() {
+  const connectBtn = document.getElementById('connectDropbox');
+  const connectedDiv = document.getElementById('dropboxConnected');
+  
+  if (isDropboxConnected) {
+    connectBtn.style.display = 'none';
+    connectedDiv.style.display = 'block';
+  } else {
+    connectBtn.style.display = 'block';
+    connectedDiv.style.display = 'none';
+  }
+}
+
+async function uploadToDropbox(filename, fileData) {
+  if (!isDropboxConnected || !dropboxClient) {
+    return false;
+  }
+  
+  try {
+    // Convert data URL to blob
+    const response = await fetch(fileData);
+    const blob = await response.blob();
+    
+    // Create custom path with trainer name
+    const trainerPath = `/Uploads/0Trainers Share/ID/${assessorName}/${filename}`;
+    
+    // Upload to Dropbox
+    await dropboxClient.filesUpload({
+      path: trainerPath,
+      contents: blob,
+      mode: 'overwrite',
+      autorename: true
+    });
+    
+    return true;
+  } catch (error) {
+    console.error('Dropbox upload failed:', error);
+    return false;
+  }
+}
   for (let i = 0; i < smallImgs.length; i += 6) {
     if (!first) pdf.addPage();
     first = false;
@@ -365,7 +487,7 @@ async function generatePDFWithImages(pdf, smallImgs, first) {
 window.addEventListener('DOMContentLoaded', function() {
   // Register Service Worker
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js')
+    navigator.serviceWorker.register('/sw.js')
       .then(registration => console.log('SW registered:', registration))
       .catch(error => console.log('SW registration failed:', error));
   }
