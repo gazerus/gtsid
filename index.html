@@ -71,6 +71,18 @@
     }
     canvas { border: 1px solid #ccc; background:#fff; }
     img.preview { max-width: 200px; display: block; margin: 0.5em auto; }
+    #captureFlash {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: white;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 9999;
+      transition: opacity 0.1s ease;
+    }
   </style>
 </head>
 <body>
@@ -121,6 +133,9 @@
   <label><input type="checkbox" id="a4Toggle"> Mark next photo as A4</label><br>
   <button onclick="capturePhoto()">Capture</button>
   <button onclick="doneCapturing()">Done</button>
+  
+  <!-- Flash effect -->
+  <div id="captureFlash"></div>
 </div>
 
 <div id="previewScreen" class="screen">
@@ -230,6 +245,13 @@ function captureMore() {
 }
 
 function capturePhoto() {
+  // Flash effect
+  const flash = document.getElementById('captureFlash');
+  flash.style.opacity = '0.8';
+  setTimeout(() => {
+    flash.style.opacity = '0';
+  }, 150);
+  
   const video = document.getElementById("video");
   const canvas = document.createElement("canvas");
   const videoWidth = video.videoWidth;
@@ -365,8 +387,7 @@ async function generatePDF(localOnly = false) {
   const txt = "Bank: " + document.getElementById("bankName").value + "\n" +
               "Card: " + document.getElementById("cardType").value + "\n" +
               "Expiry: " + document.getElementById("expiryDate").value + "\n" +
-              "ID sighted by: " + assessorName + "\n" +
-              "Assessor Name: " + assessorName;
+              "ID sighted by: " + assessorName;
   txt.split("\n").forEach((line, i) => bankCtx.fillText(line, 15, 35 + i * 25));
   smallImgs.push({ data: bankCanvas.toDataURL("image/jpeg"), a4: false });
 
