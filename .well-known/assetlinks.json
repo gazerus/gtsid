@@ -1,1 +1,9 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "io.github.gazerus.twa",
+        "sha256_cert_fingerprints": ["60:8D:F1:79:C0:49:52:82:C1:80:E1:94:09:80:E3:C3:97:8D:6A:A4:86:7A:B0:60:12:C5:3E:C5:C9:DC:E8:59"]
+      }
+    }]
 
