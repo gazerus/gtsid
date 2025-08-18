@@ -438,10 +438,12 @@ function connectDropbox() {
 }
 
 function disconnectDropbox() {
+  console.log('Disconnecting from Dropbox');
   dropboxClient = null;
   isDropboxConnected = false;
   localStorage.removeItem('dropboxToken');
   updateDropboxUI();
+  alert('Disconnected from Dropbox');
 }
 
 function updateDropboxUI() {
@@ -458,25 +460,38 @@ function updateDropboxUI() {
 }
 
 async function uploadToDropbox(filename, fileData) {
+  console.log('uploadToDropbox called with:', filename);
+  console.log('isDropboxConnected:', isDropboxConnected);
+  console.log('dropboxClient exists:', !!dropboxClient);
+  
   if (!isDropboxConnected || !dropboxClient) {
+    console.log('Not connected to Dropbox');
     return false;
   }
   
   try {
+    console.log('Converting file data...');
     const response = await fetch(fileData);
     const blob = await response.blob();
-    const trainerPath = `/Uploads/0Trainers Share/ID/${assessorName}/${filename}`;
+    console.log('Blob size:', blob.size);
     
-    await dropboxClient.filesUpload({
+    const trainerPath = `/Uploads/0Trainers Share/ID/${assessorName}/${filename}`;
+    console.log('Upload path:', trainerPath);
+    
+    console.log('Attempting Dropbox upload...');
+    const result = await dropboxClient.filesUpload({
       path: trainerPath,
       contents: blob,
       mode: 'overwrite',
       autorename: true
     });
     
+    console.log('Upload successful:', result);
     return true;
   } catch (error) {
     console.error('Dropbox upload failed:', error);
+    console.error('Error details:', error.message);
+    console.error('Error status:', error.status);
     return false;
   }
 }
