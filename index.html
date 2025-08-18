@@ -43,9 +43,19 @@
       aspect-ratio: 1.59;
       border: 2px solid #FFD700;
       border-radius: 8px;
-      box-shadow: 0 0 0 9999px rgba(0,0,0,0.3);
       pointer-events: none;
       z-index: 10;
+    }
+    #cropOverlay::before {
+      content: '';
+      position: absolute;
+      top: -50vh;
+      left: -50vw;
+      width: 200vw;
+      height: 200vh;
+      background: rgba(0,0,0,0.3);
+      pointer-events: none;
+      z-index: -1;
     }
     #captureCount {
       position: absolute;
@@ -83,6 +93,20 @@
     <h1 style="color: #FFD700; font-family: 'Century Gothic', sans-serif; font-size: 28px; font-weight: bold; margin: 0;">ID Scanner</h1>
   </div>
   <h2>Welcome <span id="welcomeAssessor"></span></h2>
+  
+  <!-- Dropbox Sync Options moved here -->
+  <div style="margin: 20px 0; padding: 15px; border: 1px solid #FFD700; border-radius: 5px;">
+    <h3 style="margin-top: 0; color: #FFD700;">Dropbox Sync</h3>
+    <div id="dropboxStatus">
+      <button id="connectDropboxBtn" onclick="connectDropbox()">Connect to Dropbox</button>
+      <div id="dropboxConnected" style="display: none;">
+        <p>✅ Connected to Dropbox</p>
+        <label><input type="checkbox" id="autoSync" checked> Auto-sync PDFs to Dropbox</label>
+        <button onclick="disconnectDropbox()" style="background: #ccc; margin-left: 10px;">Disconnect</button>
+      </div>
+    </div>
+  </div>
+  
   <button onclick="startCamera()">Start Capturing IDs</button>
   <button onclick="logout()">Log Out</button>
 </div>
@@ -112,22 +136,10 @@
   <select id="cardType">
     <option>VISA</option><option>Mastercard</option><option>Eftpos</option><option>AMEX</option>
   </select><br>
-  <input type="text" id="expiryDate" placeholder="mm/yy"><br>
-  
-  <!-- Dropbox Sync Options -->
-  <div style="margin: 20px 0; padding: 15px; border: 1px solid #FFD700; border-radius: 5px;">
-    <h3 style="margin-top: 0; color: #FFD700;">Dropbox Sync</h3>
-    <div id="dropboxStatus">
-      <button id="connectDropboxBtn" onclick="connectDropbox()">Connect to Dropbox</button>
-      <div id="dropboxConnected" style="display: none;">
-        <p>✅ Connected to Dropbox</p>
-        <label><input type="checkbox" id="autoSync" checked> Auto-sync PDFs to Dropbox</label>
-        <button onclick="disconnectDropbox()" style="background: #ccc; margin-left: 10px;">Disconnect</button>
-      </div>
-    </div>
-  </div>
+  <input type="text" id="expiryDate" placeholder="MM/YY" maxlength="5"><br>
   
   <button onclick="generatePDF()">Save to PDF</button>
+  <button onclick="generatePDF(true)" style="background: #ddd; color: #333;">Save Locally Only</button>
 </div>
 
 <script>
@@ -332,7 +344,7 @@ function rotateAndScaleImageForA4(base64) {
   });
 }
 
-async function generatePDF() {
+async function generatePDF(localOnly = false) {
   const pdf = new jsPDF();
   let first = true;
 
@@ -366,19 +378,26 @@ async function generatePDF() {
   
   const filename = `GTSID_${username}_${new Date().toISOString().slice(2,16).replace(/[-T:]/g, '')}.pdf`;
   
-  // Save PDF locally
+  // Always save locally
   pdf.save(filename);
   
-  // Auto-sync to Dropbox if enabled
-  if (isDropboxConnected && document.getElementById('autoSync').checked) {
-    const pdfData = pdf.output('dataurlstring');
-    const uploaded = await uploadToDropbox(filename, pdfData);
-    
-    if (uploaded) {
-      alert('PDF saved locally and synced to Dropbox!');
-    } else {
-      alert('PDF saved locally. Dropbox sync failed - please try manual sync.');
+  // Try Dropbox sync if not local-only and connected
+  if (!localOnly && isDropboxConnected && document.getElementById('autoSync').checked) {
+    try {
+      const pdfData = pdf.output('dataurlstring');
+      const uploaded = await uploadToDropbox(filename, pdfData);
+      
+      if (uploaded) {
+        alert('PDF saved locally and synced to Dropbox!');
+      } else {
+        alert('PDF saved locally. Dropbox sync failed - check connection.');
+      }
+    } catch (error) {
+      console.error('Dropbox sync error:', error);
+      alert('PDF saved locally. Dropbox sync failed - no internet connection.');
     }
+  } else {
+    alert('PDF saved locally!');
   }
 }
 
@@ -479,8 +498,8 @@ async function uploadToDropbox(filename, fileData) {
     const blob = await response.blob();
     console.log('Blob size:', blob.size);
     
-    // Dropbox Business team folder path
-    const trainerPath = `/Uploads/0Trainers Share/ID/${assessorName}/${filename}`;
+    // Simplified path structure
+    const trainerPath = `/IDs/${assessorName}/${filename}`;
     console.log('Upload path:', trainerPath);
     
     console.log('Attempting Dropbox upload...');
@@ -585,6 +604,7 @@ window.addEventListener('DOMContentLoaded', function() {
   } else {
     show("loginScreen");
     initializeAssessorSignature();
+    initializeExpiryDate();
   }
   
   setTimeout(updateDropboxUI, 100);
@@ -634,6 +654,28 @@ function initializeAssessorSignature() {
   canvas.addEventListener('touchstart', startDrawing, {passive:false});
   canvas.addEventListener('touchmove', draw, {passive:false});
   canvas.addEventListener('touchend', stopDrawing, {passive:false});
+}
+
+function initializeExpiryDate() {
+  const expiryInput = document.getElementById('expiryDate');
+  if (!expiryInput) return;
+  
+  expiryInput.addEventListener('input', function(e) {
+    let value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+    
+    if (value.length >= 2) {
+      value = value.substring(0, 2) + '/' + value.substring(2, 4);
+    }
+    
+    e.target.value = value;
+  });
+  
+  expiryInput.addEventListener('keypress', function(e) {
+    // Only allow digits
+    if (!/\d/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'Enter'].includes(e.key)) {
+      e.preventDefault();
+    }
+  });
 }
 </script>
 </body>
