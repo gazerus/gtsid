@@ -384,6 +384,8 @@ async function generatePDF() {
 
 // Dropbox Integration Functions
 function connectDropbox() {
+  console.log('connectDropbox called');
+  
   // Check if Dropbox SDK loaded
   if (typeof Dropbox === 'undefined') {
     alert('Dropbox SDK failed to load. Please check your internet connection and try again.');
@@ -393,10 +395,16 @@ function connectDropbox() {
   const APP_KEY = 'zh7hey3svng4kzr';
   
   // Check if we're returning from Dropbox auth
+  console.log('Current URL hash:', window.location.hash);
   const urlParams = new URLSearchParams(window.location.hash.substring(1));
   const accessToken = urlParams.get('access_token');
+  const error = urlParams.get('error');
+  
+  console.log('Access token from URL:', accessToken);
+  console.log('Error from URL:', error);
   
   if (accessToken) {
+    console.log('Found access token, connecting...');
     // We have a token from redirect
     dropboxClient = new Dropbox.Dropbox({ 
       accessToken: accessToken,
@@ -412,11 +420,18 @@ function connectDropbox() {
     return;
   }
   
+  if (error) {
+    console.log('OAuth error:', error);
+    alert('Dropbox authentication failed: ' + error);
+    return;
+  }
+  
   // No token, so redirect to Dropbox for auth
   const redirectUri = encodeURIComponent('https://gazerus.github.io/gtsid/');
   const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${APP_KEY}&response_type=token&redirect_uri=${redirectUri}&state=auth`;
   
   console.log('Redirecting to Dropbox auth URL:', authUrl);
+  console.log('Current location before redirect:', window.location.href);
   
   // Use full page redirect instead of popup
   window.location.href = authUrl;
