@@ -479,7 +479,7 @@ async function uploadToDropbox(filename, fileData) {
     const blob = await response.blob();
     console.log('Blob size:', blob.size);
     
-    // Try a simple test path first
+    // Simple test path first
     const trainerPath = `/${assessorName}_${filename}`;
     console.log('Upload path:', trainerPath);
     
@@ -487,7 +487,7 @@ async function uploadToDropbox(filename, fileData) {
     const result = await dropboxClient.filesUpload({
       path: trainerPath,
       contents: blob,
-      mode: 'overwrite',
+      mode: 'add',
       autorename: true
     });
     
@@ -497,14 +497,17 @@ async function uploadToDropbox(filename, fileData) {
     console.error('Dropbox upload failed:', error);
     console.error('Error details:', error.message);
     console.error('Error status:', error.status);
-    console.error('Full error object:', error);
     
-    // Try to get more detailed error info
-    if (error.error) {
-      console.error('Dropbox API error:', error.error);
+    // Better error details
+    try {
+      const errorText = await error.response?.text?.();
+      console.error('Response text:', errorText);
+    } catch (e) {
+      console.error('Could not read error response');
     }
-    if (error.response) {
-      console.error('Response body:', error.response);
+    
+    if (error.error) {
+      console.error('Dropbox API error:', JSON.stringify(error.error));
     }
     
     return false;
