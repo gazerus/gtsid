@@ -6,7 +6,7 @@
   <title>ID Scanner</title>
   
   <!-- PWA Manifest -->
- <link rel="manifest" href="./manifest.json">
+  <link rel="manifest" href="./manifest.json">
   
   <!-- PWA Theme Colors -->
   <meta name="theme-color" content="#FFD700">
@@ -382,31 +382,22 @@ async function generatePDF() {
   }
 }
 
-async function generatePDFWithImages(pdf, smallImgs, first) {
-
 // Dropbox Integration Functions
 function connectDropbox() {
-  // You'll need to register your app at https://www.dropbox.com/developers/apps
-  // and replace 'YOUR_APP_KEY' with your actual app key
-  const APP_KEY = 'zh7hey3svng4kzr'; // Replace with your Dropbox app key
+  const APP_KEY = 'zh7hey3svng4kzr';
   
   dropboxClient = new Dropbox.Dropbox({ 
     clientId: APP_KEY,
     fetch: fetch
   });
   
-  // Get authentication URL
   const authUrl = dropboxClient.getAuthenticationUrl('https://gazerus.github.io/gtsid/');
-  
-  // Open popup for authentication
   const popup = window.open(authUrl, 'dropbox-auth', 'width=500,height=600');
   
-  // Listen for authentication completion
   const checkAuth = setInterval(() => {
     try {
       if (popup.closed) {
         clearInterval(checkAuth);
-        // Check if we got an access token from the URL
         const urlParams = new URLSearchParams(window.location.hash.substring(1));
         const accessToken = urlParams.get('access_token');
         
@@ -418,9 +409,7 @@ function connectDropbox() {
           alert('Successfully connected to Dropbox!');
         }
       }
-    } catch (e) {
-      // Handle cross-origin issues
-    }
+    } catch (e) {}
   }, 1000);
 }
 
@@ -450,14 +439,10 @@ async function uploadToDropbox(filename, fileData) {
   }
   
   try {
-    // Convert data URL to blob
     const response = await fetch(fileData);
     const blob = await response.blob();
-    
-    // Create custom path with trainer name
     const trainerPath = `/Uploads/0Trainers Share/ID/${assessorName}/${filename}`;
     
-    // Upload to Dropbox
     await dropboxClient.filesUpload({
       path: trainerPath,
       contents: blob,
@@ -471,6 +456,8 @@ async function uploadToDropbox(filename, fileData) {
     return false;
   }
 }
+
+async function generatePDFWithImages(pdf, smallImgs, first) {
   for (let i = 0; i < smallImgs.length; i += 6) {
     if (!first) pdf.addPage();
     first = false;
@@ -485,11 +472,20 @@ async function uploadToDropbox(filename, fileData) {
 }
 
 window.addEventListener('DOMContentLoaded', function() {
-  // Register Service Worker
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js')
       .then(registration => console.log('SW registered:', registration))
       .catch(error => console.log('SW registration failed:', error));
+  }
+
+  // Check for saved Dropbox token
+  const savedToken = localStorage.getItem('dropboxToken');
+  if (savedToken) {
+    dropboxClient = new Dropbox.Dropbox({ 
+      accessToken: savedToken,
+      fetch: fetch 
+    });
+    isDropboxConnected = true;
   }
 
   const savedAssessor = localStorage.getItem("IDScannerAssessor");
@@ -505,6 +501,8 @@ window.addEventListener('DOMContentLoaded', function() {
     show("loginScreen");
     initializeAssessorSignature();
   }
+  
+  setTimeout(updateDropboxUI, 100);
 });
 
 function initializeAssessorSignature() {
