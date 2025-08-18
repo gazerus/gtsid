@@ -17,7 +17,7 @@
   <!-- jsPDF 1.x (legacy addImage API with JPEG) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/1.5.3/jspdf.debug.js"></script>
   <!-- Dropbox JavaScript SDK -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/dropbox/10.34.0/Dropbox-sdk.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dropbox@10.34.0/dist/Dropbox-sdk.min.js"></script>
   <style>
     body { font-family: 'Century Gothic', sans-serif; margin: 0; background: #ffffff; }
     .screen { 
@@ -384,33 +384,49 @@ async function generatePDF() {
 
 // Dropbox Integration Functions
 function connectDropbox() {
+  // Check if Dropbox SDK loaded
+  if (typeof Dropbox === 'undefined') {
+    alert('Dropbox SDK failed to load. Please check your internet connection and try again.');
+    return;
+  }
+  
   const APP_KEY = 'zh7hey3svng4kzr';
   
-  dropboxClient = new Dropbox.Dropbox({ 
-    clientId: APP_KEY,
-    fetch: fetch
-  });
-  
-  const authUrl = dropboxClient.getAuthenticationUrl('https://gazerus.github.io/gtsid/');
-  const popup = window.open(authUrl, 'dropbox-auth', 'width=500,height=600');
-  
-  const checkAuth = setInterval(() => {
-    try {
-      if (popup.closed) {
-        clearInterval(checkAuth);
-        const urlParams = new URLSearchParams(window.location.hash.substring(1));
-        const accessToken = urlParams.get('access_token');
-        
-        if (accessToken) {
-          dropboxClient.setAccessToken(accessToken);
-          isDropboxConnected = true;
-          localStorage.setItem('dropboxToken', accessToken);
-          updateDropboxUI();
-          alert('Successfully connected to Dropbox!');
+  try {
+    dropboxClient = new Dropbox.Dropbox({ 
+      clientId: APP_KEY,
+      fetch: fetch
+    });
+    
+    const authUrl = dropboxClient.getAuthenticationUrl('https://gazerus.github.io/gtsid/');
+    const popup = window.open(authUrl, 'dropbox-auth', 'width=500,height=600');
+    
+    if (!popup) {
+      alert('Popup blocked! Please allow popups for this site and try again.');
+      return;
+    }
+    
+    const checkAuth = setInterval(() => {
+      try {
+        if (popup.closed) {
+          clearInterval(checkAuth);
+          const urlParams = new URLSearchParams(window.location.hash.substring(1));
+          const accessToken = urlParams.get('access_token');
+          
+          if (accessToken) {
+            dropboxClient.setAccessToken(accessToken);
+            isDropboxConnected = true;
+            localStorage.setItem('dropboxToken', accessToken);
+            updateDropboxUI();
+            alert('Successfully connected to Dropbox!');
+          }
         }
-      }
-    } catch (e) {}
-  }, 1000);
+      } catch (e) {}
+    }, 1000);
+  } catch (error) {
+    console.error('Dropbox connection error:', error);
+    alert('Failed to connect to Dropbox. Please try again.');
+  }
 }
 
 function disconnectDropbox() {
