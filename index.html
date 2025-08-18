@@ -398,7 +398,9 @@ function connectDropbox() {
       fetch: fetch
     });
     
-    const authUrl = dropboxClient.getAuthenticationUrl('https://gazerus.github.io/gtsid/');
+    // Use the correct method name for newer Dropbox SDK
+    const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${APP_KEY}&response_type=token&redirect_uri=${encodeURIComponent('https://gazerus.github.io/gtsid/')}`;
+    
     const popup = window.open(authUrl, 'dropbox-auth', 'width=500,height=600');
     
     if (!popup) {
