@@ -155,6 +155,7 @@
   
   <button onclick="generatePDF()">Save to PDF</button>
   <button onclick="generatePDF(true)" style="background: #ddd; color: #333;">Save Locally Only</button>
+  <button onclick="openAppFolder()" style="background: #4CAF50; color: white;">📁 Open Files</button>
 </div>
 
 <script>
@@ -399,8 +400,22 @@ async function generatePDF(localOnly = false) {
   
   const filename = `GTSID_${username}_${new Date().toISOString().slice(2,16).replace(/[-T:]/g, '')}.pdf`;
   
-  // Always save locally
-  pdf.save(filename);
+  // Save to app-specific storage if possible (native app), otherwise regular download
+  try {
+    if (window.Android && window.Android.saveFile) {
+      // Native Android app with custom save method
+      const pdfData = pdf.output('datauri');
+      window.Android.saveFile(filename, pdfData);
+      console.log('Saved to app-specific folder');
+    } else {
+      // Web/PWA fallback - regular download
+      pdf.save(filename);
+      console.log('Saved to default downloads');
+    }
+  } catch (error) {
+    console.error('Save error:', error);
+    pdf.save(filename); // Fallback
+  }
   
   // Try Dropbox sync if not local-only and connected
   if (!localOnly && isDropboxConnected && document.getElementById('autoSync').checked) {
@@ -409,7 +424,7 @@ async function generatePDF(localOnly = false) {
       const uploaded = await uploadToDropbox(filename, pdfData);
       
       if (uploaded) {
-        alert('PDF saved locally and synced to Dropbox!');
+        alert('PDF saved and synced to Dropbox!');
       } else {
         alert('PDF saved locally. Dropbox sync failed - check connection.');
       }
@@ -418,7 +433,27 @@ async function generatePDF(localOnly = false) {
       alert('PDF saved locally. Dropbox sync failed - no internet connection.');
     }
   } else {
-    alert('PDF saved locally!');
+    alert('PDF saved successfully!');
+  }
+}
+
+function openAppFolder() {
+  try {
+    if (window.Android && window.Android.openFolder) {
+      // Native Android app method
+      window.Android.openFolder();
+    } else if (navigator.share) {
+      // PWA fallback - show share dialog
+      navigator.share({
+        title: 'ID Scanner Files',
+        text: 'Files are saved in your Downloads folder'
+      });
+    } else {
+      alert('Files are saved in your Downloads folder. Open your file manager to access them.');
+    }
+  } catch (error) {
+    console.error('Open folder error:', error);
+    alert('Files are saved in your Downloads folder. Open your file manager to access them.');
   }
 }
 
