@@ -479,8 +479,8 @@ async function uploadToDropbox(filename, fileData) {
     const blob = await response.blob();
     console.log('Blob size:', blob.size);
     
-    // Use simple working path for now
-    const trainerPath = `/${assessorName}/${filename}`;
+    // Dropbox Business team folder path
+    const trainerPath = `/Uploads/0Trainers Share/ID/${assessorName}/${filename}`;
     console.log('Upload path:', trainerPath);
     
     console.log('Attempting Dropbox upload...');
@@ -489,6 +489,11 @@ async function uploadToDropbox(filename, fileData) {
       contents: blob,
       mode: 'add',
       autorename: true
+    }, {
+      // Use team space instead of user space
+      selectUser: null,
+      selectAdmin: null,
+      pathRoot: JSON.stringify({".tag": "namespace_id", "namespace_id": "team"})
     });
     
     console.log('Upload successful:', result);
