@@ -484,23 +484,44 @@ async function uploadToDropbox(filename, fileData) {
     console.log('Upload path:', trainerPath);
     
     console.log('Attempting Dropbox upload...');
-    const result = await dropboxClient.filesUpload({
-      path: trainerPath,
-      contents: blob,
-      mode: 'add',
-      autorename: true
-    }, {
-      // Use team space instead of user space
-      selectUser: null,
-      selectAdmin: null,
-      pathRoot: JSON.stringify({".tag": "namespace_id", "namespace_id": "team"})
-    });
     
-    console.log('Upload successful:', result);
-    console.log('File uploaded to path:', result.result.path_display);
-    console.log('File ID:', result.result.id);
-    alert(`Upload successful! File saved to: ${result.result.path_display}`);
-    return true;
+    // Try team folder approach first
+    try {
+      const result = await dropboxClient.filesUpload({
+        path: trainerPath,
+        contents: blob,
+        mode: 'add',
+        autorename: true
+      }, {
+        'Dropbox-API-Path-Root': JSON.stringify({
+          ".tag": "team_space",
+          "team_space": null
+        })
+      });
+      
+      console.log('Team folder upload successful:', result);
+      console.log('File uploaded to path:', result.result.path_display);
+      console.log('File ID:', result.result.id);
+      alert(`Upload successful to team folder! File saved to: ${result.result.path_display}`);
+      return true;
+      
+    } catch (teamError) {
+      console.log('Team folder upload failed, trying regular upload:', teamError);
+      
+      // Fallback to regular upload
+      const result = await dropboxClient.filesUpload({
+        path: trainerPath,
+        contents: blob,
+        mode: 'add',
+        autorename: true
+      });
+      
+      console.log('Regular upload successful:', result);
+      console.log('File uploaded to path:', result.result.path_display);
+      console.log('File ID:', result.result.id);
+      alert(`Upload successful to personal folder! File saved to: ${result.result.path_display}`);
+      return true;
+    }
   } catch (error) {
     console.error('Dropbox upload failed:', error);
     console.error('Error details:', error.message);
