@@ -479,8 +479,8 @@ async function uploadToDropbox(filename, fileData) {
     const blob = await response.blob();
     console.log('Blob size:', blob.size);
     
-    // Your preferred folder structure (with leading slash required by Dropbox)
-    const trainerPath = `/Uploads/0Trainers Share/ID/${assessorName}/${filename}`;
+    // Use simple working path for now
+    const trainerPath = `/${assessorName}/${filename}`;
     console.log('Upload path:', trainerPath);
     
     console.log('Attempting Dropbox upload...');
