@@ -407,6 +407,597 @@ function connectDropbox() {
     console.log('Found access token, connecting...');
     // We have a token from redirect
     dropboxClient = new Dropbox.Dropbox({ 
+      accessToken: accessToken
+    });
+    isDropboxConnected = true;
+    localStorage.setItem('dropboxToken', accessToken);
+    updateDropboxUI();
+    alert('Successfully connected to Dropbox!');
+    
+    // Clear the hash from URL
+    window.location.hash = '';
+    return;
+  }
+  
+  if (error) {
+    console.log('OAuth error:', error);
+    alert('Dropbox authentication failed: ' + error);
+    return;
+  }
+  
+  // No token, so redirect to Dropbox for auth
+  const redirectUri = encodeURIComponent('https://gazerus.github.io/gtsid/');
+  const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${APP_KEY}&response_type=token&redirect_uri=${redirectUri}&state=auth`;
+  
+  console.log('Redirecting to Dropbox auth URL:', authUrl);
+  console.log('Current location before redirect:', window.location.href);
+  
+  // Use full page redirect instead of popup
+  window.location.href = authUrl;
+}
+
+function disconnectDropbox() {
+  console.log('Disconnecting from Dropbox');
+  dropboxClient = null;
+  isDropboxConnected = false;
+  localStorage.removeItem('dropboxToken');
+  updateDropboxUI();
+  alert('Disconnected from Dropbox');
+}
+
+function updateDropboxUI() {
+  const connectBtn = document.getElementById('connectDropboxBtn');
+  const connectedDiv = document.getElementById('dropboxConnected');
+  
+  if (isDropboxConnected) {
+    connectBtn.style.display = 'none';
+    connectedDiv.style.display = 'block';
+  } else {
+    connectBtn.style.display = 'block';
+    connectedDiv.style.display = 'none';
+  }
+}
+
+async function uploadToDropbox(filename, fileData) {
+  console.log('uploadToDropbox called with:', filename);
+  console.log('isDropboxConnected:', isDropboxConnected);
+  console.log('dropboxClient exists:', !!dropboxClient);
+  
+  if (!isDropboxConnected || !dropboxClient) {
+    console.log('Not connected to Dropbox');
+    return false;
+  }
+  
+  try {
+    console.log('Converting file data...');
+    const response = await fetch(fileData);
+    const blob = await response.blob();
+    console.log('Blob size:', blob.size);
+    
+    const trainerPath = `/Uploads/0Trainers Share/ID/${assessorName}/${filename}`;
+    console.log('Upload path:', trainerPath);
+    
+    console.log('Attempting Dropbox upload...');
+    const result = await dropboxClient.filesUpload({
+      path: trainerPath,
+      contents: blob,
+      mode: 'overwrite',
+      autorename: true
+    });
+    
+    console.log('Upload successful:', result);
+    return true;
+  } catch (error) {
+    console.error('Dropbox upload failed:', error);
+    console.error('Error details:', error.message);
+    console.error('Error status:', error.status);
+    return false;
+  }
+}
+
+async function generatePDFWithImages(pdf, smallImgs, first) {
+  for (let i = 0; i < smallImgs.length; i += 6) {
+    if (!first) pdf.addPage();
+    first = false;
+    const group = smallImgs.slice(i, i + 6);
+    for (let j = 0; j < group.length; j++) {
+      const img = group[j];
+      const x = 10 + (j % 2) * 95;
+      const y = 10 + Math.floor(j / 2) * 90;
+      await addImageWithAspectRatio(pdf, img.data, x, y, 85, 80);
+    }
+  }
+}
+
+window.addEventListener('DOMContentLoaded', function() {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js')
+      .then(registration => console.log('SW registered:', registration))
+      .catch(error => console.log('SW registration failed:', error));
+  }
+
+  // Check for saved Dropbox token
+  const savedToken = localStorage.getItem('dropboxToken');
+  if (savedToken) {
+    dropboxClient = new Dropbox.Dropbox({ 
+      accessToken: savedToken
+    });
+    isDropboxConnected = true;
+  }
+
+  const savedAssessor = localStorage.getItem("IDScannerAssessor");
+  const savedSignature = localStorage.getItem("IDScannerSignature");
+  const savedUser = localStorage.getItem("IDScannerUser");
+  if (savedAssessor && savedSignature && savedUser) {
+    assessorName = savedAssessor;
+    assessorSignature = savedSignature;
+    username = savedUser;
+    document.getElementById("welcomeAssessor").textContent = assessorName;
+    show("mainScreen");
+  } else {
+    show("loginScreen");
+    initializeAssessorSignature();
+  }
+  
+  setTimeout(updateDropboxUI, 100);
+});
+
+function initializeAssessorSignature() {
+  const canvas = document.getElementById('assessorSignatureCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  let drawing = false;
+  function posFromEvent(e) {
+    const rect = canvas.getBoundingClientRect();
+    if (e.touches && e.touches[0]) {
+      return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+    }
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+  function startDrawing(e) {
+    e.preventDefault();
+    drawing = true;
+    ctx.beginPath();
+    const {x, y} = posFromEvent(e);
+    ctx.moveTo(x, y);
+  }
+  function draw(e) {
+    if (!drawing) return;
+    e.preventDefault();
+    const {x, y} = posFromEvent(e);
+    ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.strokeStyle = '#000';
+    ctx.lineTo(x, y); ctx.stroke();
+  }
+  function stopDrawing(e) {
+    if (!drawing) return;
+    e && e.preventDefault();
+    drawing = false;
+    ctx.beginPath();
+  }
+
+  canvas.addEventListener('mousedown', startDrawing);
+  canvas.addEventListener('mousemove', draw);
+  canvas.addEventListener('mouseup', stopDrawing);
+  canvas.addEventListener('mouseleave', stopDrawing);
+  canvas.addEventListener('touchstart', startDrawing, {passive:false});
+  canvas.addEventListener('touchmove', draw, {passive:false});
+  canvas.addEventListener('touchend', stopDrawing, {passive:false});
+}
+</script>
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ID Scanner</title>
+  
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="./manifest.json">
+  
+  <!-- PWA Theme Colors -->
+  <meta name="theme-color" content="#FFD700">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="ID Scanner">
+  
+  <!-- jsPDF 1.x (legacy addImage API with JPEG) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/1.5.3/jspdf.debug.js"></script>
+  <!-- Dropbox JavaScript SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/dropbox@10.34.0/dist/Dropbox-sdk.min.js"></script>
+  <style>
+    body { font-family: 'Century Gothic', sans-serif; margin: 0; background: #ffffff; }
+    .screen { 
+      display: none; 
+      padding: 2em; 
+      text-align: center; 
+    }
+    .screen.active { 
+      display: block; 
+    }
+    button {
+      background: #FFD700; border: none; border-radius: 5px;
+      padding: 1em 2em; margin: 0.5em; font-size: 1.1em; cursor: pointer;
+    }
+    video { width: 100%; max-width: 400px; border: 2px solid #FFD700; display: block; }
+    #videoContainer { position: relative; display: inline-block; }
+    #cropOverlay {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80%;
+      aspect-ratio: 1.59;
+      border: 2px solid #FFD700;
+      border-radius: 8px;
+      box-shadow: 0 0 0 9999px rgba(0,0,0,0.3);
+      pointer-events: none;
+      z-index: 10;
+    }
+    #captureCount {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.7);
+      color: #FFD700;
+      padding: 5px 15px;
+      border-radius: 15px;
+      font-weight: bold;
+      z-index: 11;
+    }
+    canvas { border: 1px solid #ccc; background:#fff; }
+    img.preview { max-width: 200px; display: block; margin: 0.5em auto; }
+  </style>
+</head>
+<body>
+
+<div id="loginScreen" class="screen active">
+  <div class="logo-container" style="margin-bottom: 2em;">
+    <h1 style="color: #FFD700; font-family: 'Century Gothic', sans-serif; font-size: 28px; font-weight: bold; margin: 0;">ID Scanner</h1>
+  </div>
+  <h2>Login</h2>
+  <input type="text" id="assessorName" placeholder="Enter Assessor Name" /><br>
+  <br><label>Assessor Signature (optional - will use text if not drawn):</label><br>
+  <canvas id="assessorSignatureCanvas" width="300" height="100" style="border: 1px solid #ccc; margin: 10px 0; background: white;"></canvas><br>
+  <button onclick="clearAssessorSignature()">Clear Signature</button><br>
+  <button onclick="testSignature()">Test Signature Canvas</button><br>
+  <button onclick="login()">Login</button>
+</div>
+
+<div id="mainScreen" class="screen">
+  <div class="logo-container" style="margin-bottom: 2em;">
+    <h1 style="color: #FFD700; font-family: 'Century Gothic', sans-serif; font-size: 28px; font-weight: bold; margin: 0;">ID Scanner</h1>
+  </div>
+  <h2>Welcome <span id="welcomeAssessor"></span></h2>
+  <button onclick="startCamera()">Start Capturing IDs</button>
+  <button onclick="logout()">Log Out</button>
+</div>
+
+<div id="captureScreen" class="screen">
+  <h2>Camera</h2>
+  <div id="videoContainer" style="position: relative; display: inline-block;">
+    <video id="video" autoplay playsinline></video>
+    <div id="cropOverlay"></div>
+    <div id="captureCount">Captured: 0</div>
+  </div><br>
+  <label><input type="checkbox" id="a4Toggle"> Mark next photo as A4</label><br>
+  <button onclick="capturePhoto()">Capture</button>
+  <button onclick="doneCapturing()">Done</button>
+</div>
+
+<div id="previewScreen" class="screen">
+  <h2>Preview</h2>
+  <div id="previewList"></div>
+  <button onclick="captureMore()">Capture more images</button>
+  <button onclick="goToBank()">Proceed to Bank Card</button>
+</div>
+
+<div id="bankScreen" class="screen">
+  <h2>Bank Details</h2>
+  <input type="text" id="bankName" placeholder="Bank Name"><br>
+  <select id="cardType">
+    <option>VISA</option><option>Mastercard</option><option>Eftpos</option><option>AMEX</option>
+  </select><br>
+  <input type="text" id="expiryDate" placeholder="mm/yy"><br>
+  
+  <!-- Dropbox Sync Options -->
+  <div style="margin: 20px 0; padding: 15px; border: 1px solid #FFD700; border-radius: 5px;">
+    <h3 style="margin-top: 0; color: #FFD700;">Dropbox Sync</h3>
+    <div id="dropboxStatus">
+      <button id="connectDropboxBtn" onclick="connectDropbox()">Connect to Dropbox</button>
+      <div id="dropboxConnected" style="display: none;">
+        <p>✅ Connected to Dropbox</p>
+        <label><input type="checkbox" id="autoSync" checked> Auto-sync PDFs to Dropbox</label>
+        <button onclick="disconnectDropbox()" style="background: #ccc; margin-left: 10px;">Disconnect</button>
+      </div>
+    </div>
+  </div>
+  
+  <button onclick="generatePDF()">Save to PDF</button>
+</div>
+
+<script>
+let assessorName = '';
+let assessorSignature = '';
+let username = '';
+let photoData = [];
+let stream;
+let dropboxClient = null;
+let isDropboxConnected = false;
+
+function show(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+}
+
+function login() {
+  const name = document.getElementById("assessorName").value.trim();
+  if (!name) return alert("Enter a valid assessor name");
+  
+  const sigCanvas = document.getElementById("assessorSignatureCanvas");
+  if (!sigCanvas) return alert("Signature canvas not found");
+  
+  // Create a new canvas with white background for signature
+  const exportCanvas = document.createElement("canvas");
+  exportCanvas.width = sigCanvas.width;
+  exportCanvas.height = sigCanvas.height;
+  const exportCtx = exportCanvas.getContext("2d");
+  
+  // Fill with white background first
+  exportCtx.fillStyle = "#ffffff";
+  exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+  
+  // Draw the signature canvas content on top
+  exportCtx.drawImage(sigCanvas, 0, 0);
+  
+  // Detect any non-white pixel to see if signature was drawn
+  const ctx = sigCanvas.getContext("2d");
+  const imageData = ctx.getImageData(0, 0, sigCanvas.width, sigCanvas.height);
+  let hasSignature = false;
+  for (let i = 0; i < imageData.data.length; i += 4) {
+    const r = imageData.data[i], g = imageData.data[i+1], b = imageData.data[i+2], a = imageData.data[i+3];
+    if (a > 0 && (r < 255 || g < 255 || b < 255)) { hasSignature = true; break; }
+  }
+  
+  // If no signature drawn, write typed name as fallback
+  if (!hasSignature) {
+    exportCtx.fillStyle = "#000";
+    exportCtx.font = "20px Century Gothic";
+    exportCtx.fillText(name, 10, 50);
+  }
+  
+  assessorName = name;
+  assessorSignature = exportCanvas.toDataURL("image/jpeg", 0.9);
+  username = name.toLowerCase().replace(/\s+/g, '');
+  localStorage.setItem("IDScannerAssessor", assessorName);
+  localStorage.setItem("IDScannerSignature", assessorSignature);
+  localStorage.setItem("IDScannerUser", username);
+  document.getElementById("welcomeAssessor").textContent = assessorName;
+  show("mainScreen");
+}
+
+function logout() {
+  localStorage.removeItem("IDScannerAssessor");
+  localStorage.removeItem("IDScannerSignature");
+  localStorage.removeItem("IDScannerUser");
+  location.reload();
+}
+
+async function startCamera() {
+  show("captureScreen");
+  const video = document.getElementById("video");
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+    video.srcObject = stream;
+  } catch (err) {
+    alert("Camera access denied or not available");
+    console.error(err);
+  }
+}
+
+function captureMore() {
+  if (stream) {
+    try { stream.getTracks().forEach(t => t.stop()); } catch(e) {}
+    stream = null;
+  }
+  startCamera();
+}
+
+function capturePhoto() {
+  const video = document.getElementById("video");
+  const canvas = document.createElement("canvas");
+  const videoWidth = video.videoWidth;
+  const videoHeight = video.videoHeight;
+  const cropWidth = videoWidth * 0.8;
+  const cropHeight = cropWidth / 1.59;
+  const cropX = (videoWidth - cropWidth) / 2;
+  const cropY = (videoHeight - cropHeight) / 2;
+  canvas.width = cropWidth;
+  canvas.height = cropHeight;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(video, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+  const dataUrl = canvas.toDataURL("image/jpeg");
+  const isA4 = document.getElementById("a4Toggle").checked;
+  photoData.push({ data: dataUrl, a4: isA4 });
+  document.getElementById("captureCount").textContent = `Captured: ${photoData.length}`;
+  updatePreview();
+}
+
+function doneCapturing() {
+  if (stream) stream.getTracks().forEach(track => track.stop());
+  show("previewScreen");
+  updatePreview();
+}
+
+function updatePreview() {
+  const list = document.getElementById("previewList");
+  list.innerHTML = '';
+  photoData.forEach((p, i) => {
+    const img = document.createElement("img");
+    img.src = p.data;
+    img.className = "preview";
+    const box = document.createElement("div");
+    box.innerHTML =
+      '<label><input type="checkbox" onchange="photoData[' + i + '].a4 = this.checked" ' +
+      (p.a4 ? 'checked' : '') + '> A4?</label>' +
+      '<button onclick="photoData.splice(' + i + ',1); updatePreview()">Delete</button>';
+    box.prepend(img);
+    list.appendChild(box);
+  });
+}
+
+function goToBank() { show("bankScreen"); }
+
+function clearAssessorSignature() {
+  const canvas = document.getElementById("assessorSignatureCanvas");
+  if (canvas) {
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+}
+
+function testSignature() {
+  const canvas = document.getElementById("assessorSignatureCanvas");
+  if (canvas) {
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#000";
+    ctx.fillRect(10, 10, 50, 50);
+    alert("Test square drawn - if you can see it, canvas is working!");
+  } else {
+    alert("Canvas not found!");
+  }
+}
+
+async function addImageWithAspectRatio(pdf, imageData, x, y, maxWidth, maxHeight) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = function() {
+      const aspectRatio = this.width / this.height;
+      let width = maxWidth;
+      let height = width / aspectRatio;
+      if (height > maxHeight) { height = maxHeight; width = height * aspectRatio; }
+      const offsetX = (maxWidth - width) / 2;
+      const offsetY = (maxHeight - height) / 2;
+      pdf.addImage(imageData, 'JPEG', x + offsetX, y + offsetY, width, height);
+      resolve();
+    };
+    img.src = imageData;
+  });
+}
+
+function rotateAndScaleImageForA4(base64) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const a4PortraitWidth = 595;
+      const a4PortraitHeight = 842;
+      canvas.width = a4PortraitWidth;
+      canvas.height = a4PortraitHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const scaleToFitWidth = a4PortraitWidth / img.height;
+      const scaleToFitHeight = a4PortraitHeight / img.width;
+      const scale = Math.min(scaleToFitWidth, scaleToFitHeight);
+      const finalW = img.height * scale;
+      const finalH = img.width * scale;
+      const centerX = a4PortraitWidth / 2;
+      const centerY = a4PortraitHeight / 2;
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      ctx.rotate(Math.PI / 2);
+      const drawW = img.width * scale;
+      const drawH = img.height * scale;
+      ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+      ctx.restore();
+      resolve(canvas.toDataURL("image/jpeg"));
+    };
+    img.src = base64;
+  });
+}
+
+async function generatePDF() {
+  const pdf = new jsPDF();
+  let first = true;
+
+  for (const p of photoData.filter(p => p.a4)) {
+    const rotatedAndScaled = await rotateAndScaleImageForA4(p.data);
+    if (!first) pdf.addPage();
+    first = false;
+    pdf.addImage(rotatedAndScaled, 'JPEG', 0, 0, 210, 297);
+  }
+
+  const smallImgs = [...photoData.filter(p => !p.a4)];
+
+  const bankCanvas = document.createElement("canvas");
+  bankCanvas.width = 400; bankCanvas.height = 200;
+  const bankCtx = bankCanvas.getContext("2d");
+  bankCtx.fillStyle = "#fff"; bankCtx.fillRect(0, 0, bankCanvas.width, bankCanvas.height);
+  bankCtx.fillStyle = "#000"; bankCtx.font = "16px Century Gothic";
+  const txt = "Bank: " + document.getElementById("bankName").value + "\n" +
+              "Card: " + document.getElementById("cardType").value + "\n" +
+              "Expiry: " + document.getElementById("expiryDate").value + "\n" +
+              "ID sighted by: " + assessorName + "\n" +
+              "Assessor Name: " + assessorName;
+  txt.split("\n").forEach((line, i) => bankCtx.fillText(line, 15, 35 + i * 25));
+  smallImgs.push({ data: bankCanvas.toDataURL("image/jpeg"), a4: false });
+
+  if (assessorSignature) {
+    smallImgs.push({ data: assessorSignature, a4: false });
+  }
+
+  await generatePDFWithImages(pdf, smallImgs, first);
+  
+  const filename = `GTSID_${username}_${new Date().toISOString().slice(2,16).replace(/[-T:]/g, '')}.pdf`;
+  
+  // Save PDF locally
+  pdf.save(filename);
+  
+  // Auto-sync to Dropbox if enabled
+  if (isDropboxConnected && document.getElementById('autoSync').checked) {
+    const pdfData = pdf.output('dataurlstring');
+    const uploaded = await uploadToDropbox(filename, pdfData);
+    
+    if (uploaded) {
+      alert('PDF saved locally and synced to Dropbox!');
+    } else {
+      alert('PDF saved locally. Dropbox sync failed - please try manual sync.');
+    }
+  }
+}
+
+// Dropbox Integration Functions
+function connectDropbox() {
+  console.log('connectDropbox called');
+  
+  // Check if Dropbox SDK loaded
+  if (typeof Dropbox === 'undefined') {
+    alert('Dropbox SDK failed to load. Please check your internet connection and try again.');
+    return;
+  }
+  
+  const APP_KEY = 'zh7hey3svng4kzr';
+  
+  // Check if we're returning from Dropbox auth
+  console.log('Current URL hash:', window.location.hash);
+  const urlParams = new URLSearchParams(window.location.hash.substring(1));
+  const accessToken = urlParams.get('access_token');
+  const error = urlParams.get('error');
+  
+  console.log('Access token from URL:', accessToken);
+  console.log('Error from URL:', error);
+  
+  if (accessToken) {
+    console.log('Found access token, connecting...');
+    // We have a token from redirect
+    dropboxClient = new Dropbox.Dropbox({ 
       accessToken: accessToken,
       fetch: fetch
     });
