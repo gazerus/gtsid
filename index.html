@@ -479,7 +479,8 @@ async function uploadToDropbox(filename, fileData) {
     const blob = await response.blob();
     console.log('Blob size:', blob.size);
     
-    const trainerPath = `Uploads/0Trainers Share/ID/${assessorName}/${filename}`;
+    // Try a simple test path first
+    const trainerPath = `/${assessorName}_${filename}`;
     console.log('Upload path:', trainerPath);
     
     console.log('Attempting Dropbox upload...');
@@ -497,6 +498,15 @@ async function uploadToDropbox(filename, fileData) {
     console.error('Error details:', error.message);
     console.error('Error status:', error.status);
     console.error('Full error object:', error);
+    
+    // Try to get more detailed error info
+    if (error.error) {
+      console.error('Dropbox API error:', error.error);
+    }
+    if (error.response) {
+      console.error('Response body:', error.response);
+    }
+    
     return false;
   }
 }
