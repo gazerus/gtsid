@@ -492,6 +492,9 @@ async function uploadToDropbox(filename, fileData) {
     });
     
     console.log('Upload successful:', result);
+    console.log('File uploaded to path:', result.result.path_display);
+    console.log('File ID:', result.result.id);
+    alert(`Upload successful! File saved to: ${result.result.path_display}`);
     return true;
   } catch (error) {
     console.error('Dropbox upload failed:', error);
