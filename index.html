@@ -43,17 +43,7 @@
       border-radius: 8px;
       pointer-events: none;
       z-index: 10;
-    }
-    #cropOverlay::before {
-      content: '';
-      position: absolute;
-      top: -50vh;
-      left: -50vw;
-      width: 200vw;
-      height: 200vh;
-      background: rgba(0,0,0,0.3);
-      pointer-events: none;
-      z-index: -1;
+      box-shadow: 0 0 0 50vw rgba(0,0,0,0.3);
     }
     #captureCount {
       position: absolute;
@@ -157,6 +147,7 @@
   
   <button onclick="generatePDF()">Save PDF to IDCollect</button>
   <button onclick="openAppFolder()" style="background: #4CAF50; color: white;">📁 Open IDCollect Folder</button>
+  <button onclick="startNextScan()" style="background: #2196F3; color: white;">📄 Start New Scan</button>
 </div>
 
 <div id="completedScreen" class="screen">
