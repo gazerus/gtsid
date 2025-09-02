@@ -16,8 +16,6 @@
   
   <!-- jsPDF 1.x (legacy addImage API with JPEG) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/1.5.3/jspdf.debug.js"></script>
-  <!-- Dropbox JavaScript SDK -->
-  <script src="https://cdn.jsdelivr.net/npm/dropbox@10.34.0/dist/Dropbox-sdk.min.js"></script>
   <style>
     body { font-family: 'Century Gothic', sans-serif; margin: 0; background: #ffffff; }
     .screen { 
@@ -106,20 +104,8 @@
   </div>
   <h2>Welcome <span id="welcomeAssessor"></span></h2>
   
-  <!-- Dropbox Sync Options moved here -->
-  <div style="margin: 20px 0; padding: 15px; border: 1px solid #FFD700; border-radius: 5px;">
-    <h3 style="margin-top: 0; color: #FFD700;">Dropbox Sync</h3>
-    <div id="dropboxStatus">
-      <button id="connectDropboxBtn" onclick="connectDropbox()">Connect to Dropbox</button>
-      <div id="dropboxConnected" style="display: none;">
-        <p>✅ Connected to Dropbox</p>
-        <label><input type="checkbox" id="autoSync" checked> Auto-sync PDFs to Dropbox</label>
-        <button onclick="disconnectDropbox()" style="background: #ccc; margin-left: 10px;">Disconnect</button>
-      </div>
-    </div>
-  </div>
-  
   <button onclick="startCamera()">Start Capturing IDs</button>
+  <button onclick="openAppFolder()" style="background: #4CAF50; color: white;">📁 Open IDCollect Folder</button>
   <button onclick="logout()">Log Out</button>
 </div>
 
@@ -153,9 +139,8 @@
   </select><br>
   <input type="text" id="expiryDate" placeholder="MM/YY" maxlength="5"><br>
   
-  <button onclick="generatePDF()">Save to PDF</button>
-  <button onclick="generatePDF(true)" style="background: #ddd; color: #333;">Save Locally Only</button>
-  <button onclick="openAppFolder()" style="background: #4CAF50; color: white;">📁 Open Files</button>
+  <button onclick="generatePDF()">Save PDF to IDCollect</button>
+  <button onclick="openAppFolder()" style="background: #4CAF50; color: white;">📁 Open IDCollect Folder</button>
 </div>
 
 <script>
@@ -164,8 +149,6 @@ let assessorSignature = '';
 let username = '';
 let photoData = [];
 let stream;
-let dropboxClient = null;
-let isDropboxConnected = false;
 
 function show(id) {
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
@@ -367,7 +350,7 @@ function rotateAndScaleImageForA4(base64) {
   });
 }
 
-async function generatePDF(localOnly = false) {
+async function generatePDF() {
   const pdf = new jsPDF();
   let first = true;
 
@@ -400,221 +383,46 @@ async function generatePDF(localOnly = false) {
   
   const filename = `GTSID_${username}_${new Date().toISOString().slice(2,16).replace(/[-T:]/g, '')}.pdf`;
   
-  // Save to app-specific storage if possible (native app), otherwise regular download
+  // Save to IDCollect folder if possible (native app), otherwise regular download
   try {
-    if (window.Android && window.Android.saveFile) {
-      // Native Android app with custom save method
+    if (window.Android && window.Android.saveToIDCollect) {
+      // Native Android app with custom save method for IDCollect folder
       const pdfData = pdf.output('datauri');
-      window.Android.saveFile(filename, pdfData);
-      console.log('Saved to app-specific folder');
+      window.Android.saveToIDCollect(filename, pdfData);
+      console.log('Saved to IDCollect folder');
+      alert('PDF saved to IDCollect folder successfully!');
     } else {
       // Web/PWA fallback - regular download
+      // Note: Browser downloads will go to default Downloads folder
+      // Your sync app will need to move/copy files from Downloads to IDCollect
       pdf.save(filename);
-      console.log('Saved to default downloads');
+      console.log('Saved to Downloads folder (will be moved to IDCollect by sync app)');
+      alert('PDF saved to Downloads folder! Your sync app will move it to IDCollect.');
     }
   } catch (error) {
     console.error('Save error:', error);
-    pdf.save(filename); // Fallback
-  }
-  
-  // Try Dropbox sync if not local-only and connected
-  if (!localOnly && isDropboxConnected && document.getElementById('autoSync').checked) {
-    try {
-      const pdfData = pdf.output('dataurlstring');
-      const uploaded = await uploadToDropbox(filename, pdfData);
-      
-      if (uploaded) {
-        alert('PDF saved and synced to Dropbox!');
-      } else {
-        alert('PDF saved locally. Dropbox sync failed - check connection.');
-      }
-    } catch (error) {
-      console.error('Dropbox sync error:', error);
-      alert('PDF saved locally. Dropbox sync failed - no internet connection.');
-    }
-  } else {
-    alert('PDF saved successfully!');
+    pdf.save(filename); // Fallback to regular download
+    alert('PDF saved to Downloads folder!');
   }
 }
 
 function openAppFolder() {
   try {
-    if (window.Android && window.Android.openFolder) {
-      // Native Android app method
-      window.Android.openFolder();
+    if (window.Android && window.Android.openIDCollectFolder) {
+      // Native Android app method to open IDCollect folder
+      window.Android.openIDCollectFolder();
     } else if (navigator.share) {
       // PWA fallback - show share dialog
       navigator.share({
         title: 'ID Scanner Files',
-        text: 'Files are saved in your Downloads folder'
+        text: 'Files are saved in the IDCollect folder'
       });
     } else {
-      alert('Files are saved in your Downloads folder. Open your file manager to access them.');
+      alert('Files are saved in the IDCollect folder. Open your file manager to access them.');
     }
   } catch (error) {
     console.error('Open folder error:', error);
-    alert('Files are saved in your Downloads folder. Open your file manager to access them.');
-  }
-}
-
-// Dropbox Integration Functions
-function connectDropbox() {
-  console.log('connectDropbox called');
-  
-  // Check if Dropbox SDK loaded
-  if (typeof Dropbox === 'undefined') {
-    alert('Dropbox SDK failed to load. Please check your internet connection and try again.');
-    return;
-  }
-  
-  const APP_KEY = 'zh7hey3svng4kzr';
-  
-  // Check if we're returning from Dropbox auth
-  console.log('Current URL hash:', window.location.hash);
-  const urlParams = new URLSearchParams(window.location.hash.substring(1));
-  const accessToken = urlParams.get('access_token');
-  const error = urlParams.get('error');
-  
-  console.log('Access token from URL:', accessToken);
-  console.log('Error from URL:', error);
-  
-  if (accessToken) {
-    console.log('Found access token, connecting...');
-    // We have a token from redirect
-    dropboxClient = new Dropbox.Dropbox({ 
-      accessToken: accessToken
-    });
-    isDropboxConnected = true;
-    localStorage.setItem('dropboxToken', accessToken);
-    updateDropboxUI();
-    alert('Successfully connected to Dropbox!');
-    
-    // Clear the hash from URL
-    window.location.hash = '';
-    return;
-  }
-  
-  if (error) {
-    console.log('OAuth error:', error);
-    alert('Dropbox authentication failed: ' + error);
-    return;
-  }
-  
-  // No token, so redirect to Dropbox for auth
-  const redirectUri = encodeURIComponent('https://gazerus.github.io/gtsid/');
-  const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${APP_KEY}&response_type=token&redirect_uri=${redirectUri}&state=auth`;
-  
-  console.log('Redirecting to Dropbox auth URL:', authUrl);
-  console.log('Current location before redirect:', window.location.href);
-  
-  // Use full page redirect instead of popup
-  window.location.href = authUrl;
-}
-
-function disconnectDropbox() {
-  console.log('Disconnecting from Dropbox');
-  dropboxClient = null;
-  isDropboxConnected = false;
-  localStorage.removeItem('dropboxToken');
-  updateDropboxUI();
-  alert('Disconnected from Dropbox');
-}
-
-function updateDropboxUI() {
-  const connectBtn = document.getElementById('connectDropboxBtn');
-  const connectedDiv = document.getElementById('dropboxConnected');
-  
-  if (isDropboxConnected) {
-    connectBtn.style.display = 'none';
-    connectedDiv.style.display = 'block';
-  } else {
-    connectBtn.style.display = 'block';
-    connectedDiv.style.display = 'none';
-  }
-}
-
-async function uploadToDropbox(filename, fileData) {
-  console.log('uploadToDropbox called with:', filename);
-  console.log('isDropboxConnected:', isDropboxConnected);
-  console.log('dropboxClient exists:', !!dropboxClient);
-  
-  if (!isDropboxConnected || !dropboxClient) {
-    console.log('Not connected to Dropbox');
-    return false;
-  }
-  
-  try {
-    // Test current user info and permissions
-    console.log('Checking Dropbox permissions...');
-    const userInfo = await dropboxClient.usersGetCurrentAccount();
-    console.log('User info:', userInfo);
-    
-    console.log('Converting file data...');
-    const response = await fetch(fileData);
-    const blob = await response.blob();
-    console.log('Blob size:', blob.size);
-    
-    // Simplified path structure
-    const trainerPath = `/IDs/${assessorName}/${filename}`;
-    console.log('Upload path:', trainerPath);
-    
-    console.log('Attempting Dropbox upload...');
-    
-    // Try team folder approach first
-    try {
-      const result = await dropboxClient.filesUpload({
-        path: trainerPath,
-        contents: blob,
-        mode: 'add',
-        autorename: true
-      }, {
-        'Dropbox-API-Path-Root': JSON.stringify({
-          ".tag": "team_space",
-          "team_space": null
-        })
-      });
-      
-      console.log('Team folder upload successful:', result);
-      console.log('File uploaded to path:', result.result.path_display);
-      console.log('File ID:', result.result.id);
-      alert(`Upload successful to team folder! File saved to: ${result.result.path_display}`);
-      return true;
-      
-    } catch (teamError) {
-      console.log('Team folder upload failed, trying regular upload:', teamError);
-      
-      // Fallback to regular upload
-      const result = await dropboxClient.filesUpload({
-        path: trainerPath,
-        contents: blob,
-        mode: 'add',
-        autorename: true
-      });
-      
-      console.log('Regular upload successful:', result);
-      console.log('File uploaded to path:', result.result.path_display);
-      console.log('File ID:', result.result.id);
-      alert(`Upload successful to personal folder! File saved to: ${result.result.path_display}`);
-      return true;
-    }
-  } catch (error) {
-    console.error('Dropbox upload failed:', error);
-    console.error('Error details:', error.message);
-    console.error('Error status:', error.status);
-    
-    // Better error details
-    try {
-      const errorText = await error.response?.text?.();
-      console.error('Response text:', errorText);
-    } catch (e) {
-      console.error('Could not read error response');
-    }
-    
-    if (error.error) {
-      console.error('Dropbox API error:', JSON.stringify(error.error));
-    }
-    
-    return false;
+    alert('Files are saved in the IDCollect folder. Open your file manager to access them.');
   }
 }
 
@@ -639,15 +447,6 @@ window.addEventListener('DOMContentLoaded', function() {
       .catch(error => console.log('SW registration failed:', error));
   }
 
-  // Check for saved Dropbox token
-  const savedToken = localStorage.getItem('dropboxToken');
-  if (savedToken) {
-    dropboxClient = new Dropbox.Dropbox({ 
-      accessToken: savedToken
-    });
-    isDropboxConnected = true;
-  }
-
   const savedAssessor = localStorage.getItem("IDScannerAssessor");
   const savedSignature = localStorage.getItem("IDScannerSignature");
   const savedUser = localStorage.getItem("IDScannerUser");
@@ -662,8 +461,6 @@ window.addEventListener('DOMContentLoaded', function() {
     initializeAssessorSignature();
     initializeExpiryDate();
   }
-  
-  setTimeout(updateDropboxUI, 100);
 });
 
 function initializeAssessorSignature() {
