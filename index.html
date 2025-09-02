@@ -104,6 +104,22 @@
   </div>
   <h2>Welcome <span id="welcomeAssessor"></span></h2>
   
+  <!-- IDCollect Folder Setup -->
+  <div style="margin: 20px 0; padding: 15px; border: 1px solid #FFD700; border-radius: 5px;">
+    <h3 style="margin-top: 0; color: #FFD700;">File Storage</h3>
+    <div id="folderStatus">
+      <button id="setupFolderBtn" onclick="quickSetupIDCollect()" style="background: #4CAF50; color: white;">Set up Documents/IDCollect Folder</button>
+      <div id="folderSetup" style="display: none;">
+        <p style="color: #4CAF50;">✅ IDCollect folder ready</p>
+        <p style="font-size: 12px; color: #666;">Files save to: Documents/IDCollect/</p>
+        <button onclick="quickSetupIDCollect()" style="background: #ccc; margin-left: 10px;">Reconnect</button>
+      </div>
+      <p style="font-size: 12px; color: #666; margin-top: 10px;">
+        <strong>Note:</strong> Click once to set up automatic saving to Documents/IDCollect/
+      </p>
+    </div>
+  </div>
+  
   <button onclick="startCamera()">Start Capturing IDs</button>
   <button onclick="openAppFolder()" style="background: #4CAF50; color: white;">📁 Open IDCollect Folder</button>
   <button onclick="logout()">Log Out</button>
@@ -141,6 +157,18 @@
   
   <button onclick="generatePDF()">Save PDF to IDCollect</button>
   <button onclick="openAppFolder()" style="background: #4CAF50; color: white;">📁 Open IDCollect Folder</button>
+</div>
+
+<div id="completedScreen" class="screen">
+  <div class="logo-container" style="margin-bottom: 2em;">
+    <h1 style="color: #FFD700; font-family: 'Century Gothic', sans-serif; font-size: 28px; font-weight: bold; margin: 0;">ID Scanner</h1>
+  </div>
+  <h2 style="color: #4CAF50;">✅ Document Saved Successfully!</h2>
+  <p>PDF saved to: <span id="savedLocation" style="font-weight: bold; color: #4CAF50;"></span></p>
+  
+  <button onclick="startNextScan()" style="background: #4CAF50; color: white; font-size: 1.2em; padding: 1.5em 2em;">📄 Scan Next Document</button>
+  <button onclick="openAppFolder()" style="background: #2196F3; color: white;">📁 Open IDCollect Folder</button>
+  <button onclick="show('mainScreen')" style="background: #666; color: white;">🏠 Back to Main Menu</button>
 </div>
 
 <script>
@@ -350,6 +378,116 @@ function rotateAndScaleImageForA4(base64) {
   });
 }
 
+// Global variable to store the selected directory handle
+let idCollectDirHandle = null;
+
+async function initializeIDCollectFolder() {
+  try {
+    // Check if File System Access API is supported
+    if ('showDirectoryPicker' in window) {
+      // Try to get or create IDCollect folder in Documents
+      const documentsHandle = await window.showDirectoryPicker({
+        mode: 'readwrite',
+        startIn: 'documents'
+      });
+      
+      try {
+        // Try to get existing IDCollect folder
+        idCollectDirHandle = await documentsHandle.getDirectoryHandle('IDCollect');
+      } catch (error) {
+        // Create IDCollect folder if it doesn't exist
+        idCollectDirHandle = await documentsHandle.getDirectoryHandle('IDCollect', { create: true });
+      }
+      
+      localStorage.setItem('IDCollectFolderSetup', 'true');
+      console.log('IDCollect folder ready');
+      return true;
+    } else {
+      console.log('File System Access API not supported');
+      return false;
+    }
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      console.log('User cancelled folder selection');
+    } else {
+      console.error('Error setting up IDCollect folder:', error);
+    }
+    return false;
+  }
+}
+
+async function quickSetupIDCollect() {
+  const result = await initializeIDCollectFolder();
+  if (result) {
+    alert('IDCollect folder is ready! Files will save directly to Documents/IDCollect/');
+    updateFolderUI();
+  } else {
+    alert('Could not set up IDCollect folder automatically. Files will save to Downloads.');
+  }
+}
+
+async function saveToIDCollectFolder(filename, pdfBlob) {
+  try {
+    if (!idCollectDirHandle) {
+      throw new Error('IDCollect folder not set up');
+    }
+    
+    // Create file in the IDCollect directory
+    const fileHandle = await idCollectDirHandle.getFileHandle(filename, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(pdfBlob);
+    await writable.close();
+    
+    return true;
+  } catch (error) {
+    console.error('Error saving to IDCollect folder:', error);
+    return false;
+  }
+}
+
+function startNextScan() {
+  // Clear all photo data for fresh scan
+  photoData = [];
+  
+  // Clear bank form fields
+  document.getElementById("bankName").value = '';
+  document.getElementById("cardType").selectedIndex = 0;
+  document.getElementById("expiryDate").value = '';
+  
+  // Reset preview
+  updatePreview();
+  
+  // Clear form data
+  clearFormData();
+  
+  // Start camera for next scan
+  startCamera();
+}
+
+function clearFormData() {
+  // Reset photo capture counter
+  const captureCount = document.getElementById("captureCount");
+  if (captureCount) captureCount.textContent = "Captured: 0";
+  
+  // Clear A4 toggle
+  const a4Toggle = document.getElementById("a4Toggle");
+  if (a4Toggle) a4Toggle.checked = false;
+}
+
+function updateFolderUI() {
+  const setupBtn = document.getElementById('setupFolderBtn');
+  const setupDiv = document.getElementById('folderSetup');
+  const folderSetup = localStorage.getItem('IDCollectFolderSetup');
+  
+  if (folderSetup && idCollectDirHandle) {
+    setupBtn.style.display = 'none';
+    setupDiv.style.display = 'block';
+  } else {
+    setupBtn.style.display = 'inline-block';
+    setupDiv.style.display = 'none';
+  }
+}
+
 async function generatePDF() {
   const pdf = new jsPDF();
   let first = true;
@@ -383,26 +521,65 @@ async function generatePDF() {
   
   const filename = `GTSID_${username}_${new Date().toISOString().slice(2,16).replace(/[-T:]/g, '')}.pdf`;
   
-  // Save to IDCollect folder if possible (native app), otherwise regular download
+  let saveLocation = "Downloads folder";
+  let success = false;
+  
   try {
     if (window.Android && window.Android.saveToIDCollect) {
       // Native Android app with custom save method for IDCollect folder
       const pdfData = pdf.output('datauri');
       window.Android.saveToIDCollect(filename, pdfData);
-      console.log('Saved to IDCollect folder');
-      alert('PDF saved to IDCollect folder successfully!');
+      console.log('Saved to IDCollect folder via native app');
+      saveLocation = "IDCollect folder";
+      success = true;
+    } else if (idCollectDirHandle && 'showDirectoryPicker' in window) {
+      // Use File System Access API to save to IDCollect folder
+      const pdfBlob = pdf.output('blob');
+      const saved = await saveToIDCollectFolder(filename, pdfBlob);
+      
+      if (saved) {
+        console.log('Saved to Documents/IDCollect/ folder');
+        saveLocation = "Documents/IDCollect/";
+        success = true;
+      } else {
+        throw new Error('Failed to save to IDCollect folder');
+      }
     } else {
-      // Web/PWA fallback - regular download
-      // Note: Browser downloads will go to default Downloads folder
-      // Your sync app will need to move/copy files from Downloads to IDCollect
-      pdf.save(filename);
-      console.log('Saved to Downloads folder (will be moved to IDCollect by sync app)');
-      alert('PDF saved to Downloads folder! Your sync app will move it to IDCollect.');
+      // Auto-setup attempt if not already done
+      if ('showDirectoryPicker' in window && !idCollectDirHandle) {
+        const setupResult = await initializeIDCollectFolder();
+        if (setupResult) {
+          const pdfBlob = pdf.output('blob');
+          const saved = await saveToIDCollectFolder(filename, pdfBlob);
+          if (saved) {
+            console.log('Auto-setup successful, saved to Documents/IDCollect/');
+            saveLocation = "Documents/IDCollect/";
+            success = true;
+            updateFolderUI();
+          }
+        }
+      }
+      
+      if (!success) {
+        // Fallback to regular download
+        pdf.save(filename);
+        console.log('Saved to Downloads folder');
+        saveLocation = "Downloads folder";
+        success = true;
+      }
     }
   } catch (error) {
     console.error('Save error:', error);
-    pdf.save(filename); // Fallback to regular download
-    alert('PDF saved to Downloads folder!');
+    // Fallback to regular download
+    pdf.save(filename);
+    saveLocation = "Downloads folder";
+    success = true;
+  }
+  
+  // Show completion screen
+  if (success) {
+    document.getElementById("savedLocation").textContent = saveLocation;
+    show("completedScreen");
   }
 }
 
@@ -461,6 +638,16 @@ window.addEventListener('DOMContentLoaded', function() {
     initializeAssessorSignature();
     initializeExpiryDate();
   }
+  
+  // Check if folder was previously set up
+  const folderSetup = localStorage.getItem('IDCollectFolderSetup');
+  if (folderSetup && 'showDirectoryPicker' in window) {
+    // Note: We can't restore the directory handle from localStorage due to security
+    // User will need to set up the folder again after browser restart
+    console.log('IDCollect folder was previously set up, but needs to be selected again');
+  }
+  
+  setTimeout(updateFolderUI, 100);
 });
 
 function initializeAssessorSignature() {
